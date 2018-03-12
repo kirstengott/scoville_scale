@@ -27,7 +27,7 @@ This table has five columns:
 
 5. difference: the difference between the minimum and maximum scoville, if there is a range
 
-```{r startingup, message=FALSE }
+```{r startingup, message=FALSE }http://www.kirstengotting.com/scoville_scalhttp://www.kirstengotting.com/scoville_scal
 
 library('tidyverse')
 library('knitr')
