@@ -1,0 +1,214 @@
+---
+title: "What does a scoville really mean?"
+output:
+  html_document
+---
+
+
+I cannot be the only person who after biting into a jalapeno thougt to myself, "Well if this is hot, I can't even imagine what a ghost pepper might be like"? One way to estimate the different heats of hot peppers and sauces is through the scoville scale. 
+"The Scoville scale is a measurement of the pungency (spicy heat) of chili peppers, or other spicy foods, as reported in Scoville heat units (SHU), a function of capsaicin concentration. Capsaicin is one of many related pungent compounds found in chili peppers, collectively called capsaicinoids. The scale is named after its creator, American pharmacist Wilbur Scoville whose 1912 method is known as the Scoville organoleptic test.
+
+In modern times, high-performance liquid chromatography is used to determine the pungency. The older method is a subjective measurement dependent on the capsaicin sensitivity of testers, and so is not a precise or accurate method to measure capsaicinoid concentration." (Wikipedia)
+
+
+I want to know how comparable different amounts of 'heat' are based on the scoville scale. In the last year or so, I have been watching a youtube series called 'Hot Ones'. In this series, the host sits down with celebrities and asks them questions as the eat progressively hotter and hotter wings. On one episode, Padma Lakshmi known for hosting Bravo's 'Top Chef', claimed that the scoville scale doesn't mean anything because the scale of comparison is too wide. I want to dig in deeper to that claim. 
+
+To do this analysis, I scraped the data collected by Scott Roberts available [here](http://www.scottrobertsweb.com/scoville-scale/). 
+
+This table has five columns:
+
+1. name: the name of the hot sauce
+
+2. scoville_min: the minimum and maximum scovilles of the hot sauce
+
+3. scoville_max: the minimum and maximum scovilles of the hot sauce
+
+4. jalapeno_comp: the heat compared to a jalapenoe
+
+5. difference: the difference between the minimum and maximum scoville, if there is a range
+
+```{r startingup, message=FALSE }
+
+library('tidyverse')
+library('knitr')
+source('~/scripts/theme_kirsten.R')
+
+opts_chunk$set(message=FALSE, results="hide", warning=FALSE)
+
+
+table <- read_csv('scoville.csv') %>%
+  separate(scoville, into = c('scoville_min', 'scoville_max'), sep = "_") %>%
+  mutate_at(vars('scoville_min', "scoville_max"), funs(as.numeric)) %>%
+  mutate(difference = ifelse(scoville_min != scoville_max, yes = scoville_max - scoville_min, no = 0)) %>%
+  mutate(range = ifelse(scoville_min != scoville_max, yes = TRUE, no = FALSE))
+
+glimpse(table) ## look at the table
+table(table$range) ## how many of our measurements are in ranges?
+
+```
+
+
+```{r, results='asis', eval = TRUE, echo = FALSE, warning=FALSE}
+
+DT::datatable(table, extensions = c('Buttons', 'FixedHeader', 'Scroller'), options = list(
+    dom = 'frtBip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print'),
+    deferRender = TRUE,
+    scrollY = 200,
+    scroller = TRUE)
+    )
+
+```
+
+
+
+
+I first want to view the distribution of the values of scoville that have a range of values. 
+
+
+```{r}
+box <- table %>%
+  filter(range == TRUE) %>%
+  select(scoville_max, scoville_min, difference, name) %>%
+  gather(key = scoville_data, value = value, -name) %>%
+  ggplot(aes(y = value, x = scoville_data)) 
+box <- box + geom_boxplot()
+box <- box + theme_kirsten() + labs(title = 'How distributed are the scoville measurements?',
+                                    subtitle = 'For peppers/sauces with a ranged measurement',
+                                    y = 'Scoville Units', x = 'Hot Sauces/Peppers')
+
+box
+```
+
+
+
+
+
+We see some huge differences for what can be considered the 'minimum' and 'maximum' scoville unit for hot sauces that vary in their heat. 
+
+
+```{r}
+
+box <- table %>%
+  filter(range == FALSE) %>%
+  select(scoville_max, name) %>%
+  gather(key = scoville_data, value = value, -name) %>%
+  ggplot(aes(y = value, x = scoville_data)) 
+box <- box + geom_boxplot() 
+box <- box + theme_kirsten() + labs(title = 'How distributed are the scoville measurements?',
+                                    subtitle = 'For peppers/sauces with only one measurement',
+                                    y = 'Scoville Units', x = 'Hot Sauces/Peppers')
+
+box
+
+```
+
+
+
+
+While some of the hot sauces that don't have ranges still have a similar order of maximum heat as the ranged hot sauces. 
+
+
+
+By looking at the individual points, we can see a lot of dispersion in the maximal values, and less for the minimals.
+
+
+
+```{r}
+
+table %>%
+  filter(range == TRUE) %>%
+  select(scoville_max, scoville_min, name) %>%
+  gather(key = scoville_data, value = value, -name) %>%
+  ggplot(aes(y = value, x = scoville_data)) +
+  geom_jitter() + 
+  theme_kirsten() + 
+  labs(title = 'How much dispersion is there in scoville measurements?', y = 'Scoville Units', x = 'Hot Sauces/Peppers') +
+  scale_y_continuous(breaks = seq(0, 16000000, by = 1000000))
+
+```
+
+
+
+```{r}
+## lets look at the top three variables
+
+table %>%
+  filter(range == TRUE) %>%
+  select(scoville_max, scoville_min, name) %>%
+  top_n(n = 3, wt = scoville_max) %>%
+  gather(key = scoville_data, value = value, -name) %>%
+  ggplot(aes(y = value, x = scoville_data, colour = name, group = name)) +
+  geom_point() +
+  geom_path() +
+  theme_kirsten() +
+  labs(title = 'How much can a sauce/pepper vary from batch to batch?',
+       caption = 'Showing the three hottest sauces/peppers',
+       y = 'Scoville Units', x = 'Scovile Range')
+
+```
+
+
+
+
+
+Blair's Caldera Hot Sauce can potentially vary by an order of magnitude between batches of sauce, with the low end being less hot than pepper spray. Yikes!
+
+
+Next I'm going to make the previous plot for arbitrary bins of the data, based on the ranked maximum scoville unit. 
+
+
+```{r}
+
+bin_key <- data.frame(bins = c(1,2,3,4),
+                      bin_name = c('Low', 'Medium', 'Hot', 'Fire'),
+                      stringsAsFactors = FALSE
+)
+
+table %>%
+  filter(range == TRUE) %>%
+  mutate(bins = ntile(rank(scoville_max), 4)) %>%
+  group_by(bins) %>%
+  top_n(n = 2, wt = scoville_max) %>%
+  select(scoville_max, scoville_min, name, bins) %>%
+  gather(key = scoville_data, value = value, -name, -bins) %>%
+  left_join(., bin_key, by = 'bins') %>%
+  ggplot(aes(y = value, x = scoville_data, group = name, colour = name)) +
+  geom_point() +
+  geom_line() +
+  theme_kirsten(angle = 20) + 
+  labs(title = 'How much batch variation exists across the scoville scale?', 
+       y = 'Scoville Units', x = 'Hot Sauces/Pepper', 
+       caption = 'Showing the top two hot sauces/peppers for each bin') +
+  facet_wrap(~bin_name, scales = 'free_y')
+
+```
+
+```{r}
+
+table %>%
+  filter(range == TRUE) %>%
+  mutate(bins = ntile(rank(scoville_max), 4)) %>%
+  group_by(bins) %>%
+  top_n(n = -2, wt = scoville_max) %>%
+  select(scoville_max, scoville_min, name, bins) %>%
+  gather(key = scoville_data, value = value, -name, -bins) %>%
+  left_join(., bin_key, by = 'bins') %>%
+  ggplot(aes(y = value, x = scoville_data, group = name, colour = name)) +
+  geom_point() +
+  geom_line() +
+  theme_kirsten(angle = 20) + 
+  labs(title = 'How much batch variation exists across the scoville scale?', 
+       y = 'Scoville Units', x = 'Hot Sauces/Pepper', 
+       caption = 'Showing the bottom two hot sauces/peppers for each bin') +
+  facet_wrap(~bin_name, scales = 'free_y')
+
+```
+
+
+
+
+These plots lead me to believe that although the high-performance liquid chromatograpy method for determining the number of scoville units for a given pepper or sauce may be accurate, the ranges of variation seen for the sauces and peppers are probably a result of inconsistencies in pepper growth conditions, or dilutions of the sauce which can both affect the amount of heat in a given sample. 
+
+
+
