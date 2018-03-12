@@ -15,6 +15,8 @@ I want to know how comparable different amounts of 'heat' are based on the scovi
 
 To do this analysis, I scraped the data collected by Scott Roberts available [here](http://www.scottrobertsweb.com/scoville-scale/). 
 
+The code I used for scraping the table is available [here](https://github.com/kirstengott/scoville_scale/blob/master/scraping_scoville_table.ipynb) and viewable [here](scraping_scoville_table.html)
+
 This table has five columns:
 
 1. name: the name of the hot sauce
@@ -27,7 +29,7 @@ This table has five columns:
 
 5. difference: the difference between the minimum and maximum scoville, if there is a range
 
-```{r startingup, message=FALSE }http://www.kirstengotting.com/scoville_scalhttp://www.kirstengotting.com/scoville_scal
+```{r startingup, message=FALSE }
 
 library('tidyverse')
 library('knitr')
